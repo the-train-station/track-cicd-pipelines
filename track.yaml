@@ -1,0 +1,11 @@
+slug: cicd-pipelines
+title: CI/CD Pipelines
+description: Continuous integration and deployment automation
+icon: GitBranch
+color: purple
+tier: free
+lessons:
+  - { order: 1, dir: lesson-01-deployment-strategies-explained-blue-green-canary-rolling, tier: free }
+  - { order: 2, dir: lesson-02-github-actions-ci-cd-workshop, tier: free }
+  - { order: 3, dir: lesson-03-github-actions-starter-workflows, tier: free }
+  - { order: 4, dir: lesson-04-gitlab-ci-cd-tutorial, tier: free }
