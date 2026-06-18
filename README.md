@@ -6,9 +6,7 @@
 Continuous integration and deployment automation.
 
 Part of [Train Station](https://github.com/jon-the-dev/saas-train-station), a tiered
-learning platform. This repo holds the **free** lessons for this track. **6 additional
-premium lessons** — Argo CD GitOps, AWS CodePipeline Workshop, Jenkins Pipeline Examples,
-Tekton Pipelines, and more — are available in the Train Station app.
+learning platform. This repo holds the **free** lessons for this track. **6 additional premium lessons** — Argo CD - GitOps Continuous Delivery for Kubernetes, AWS CodePipeline Workshop, CI/CD Best Practices - Google Cloud, Continuous Delivery (Jez Humble) - Book Summary, and more — are available in the Train Station app.
 
 ## Lessons
 
