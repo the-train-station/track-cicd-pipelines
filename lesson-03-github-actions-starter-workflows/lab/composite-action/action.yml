@@ -1,0 +1,99 @@
+# =============================================================================
+# Composite Action: Setup & Lint
+# =============================================================================
+# A composite action bundles multiple steps into a single reusable action.
+# Unlike reusable workflows (which are full workflows), composite actions
+# are used AS A STEP within a job.
+#
+# Key differences from reusable workflows:
+# - Composite actions run as steps in the CALLER'S job (same runner)
+# - Reusable workflows create their own jobs (potentially different runners)
+# - Composite actions share the workspace with other steps
+# - Reusable workflows have isolated workspaces
+#
+# Usage in a workflow:
+#   steps:
+#     - uses: actions/checkout@v4
+#     - uses: ./.github/actions/setup-and-lint
+#       with:
+#         node-version: "20"
+#         package-manager: "pnpm"
+# =============================================================================
+
+name: "Setup and Lint"
+description: "Sets up Node.js, installs dependencies, and runs linting"
+
+# -----------------------------------------------------------------------------
+# Inputs: Parameters the caller passes to this action
+# -----------------------------------------------------------------------------
+inputs:
+  node-version:
+    description: "Node.js version to install"
+    required: false
+    default: "20"
+  package-manager:
+    description: "Package manager to use (pnpm or npm)"
+    required: false
+    default: "pnpm"
+
+# -----------------------------------------------------------------------------
+# Outputs: Values this action makes available to subsequent steps
+# -----------------------------------------------------------------------------
+outputs:
+  lint-result:
+    description: "Whether linting passed (success/failure)"
+    value: ${{ steps.lint.outputs.result }}
+  cache-hit:
+    description: "Whether the dependency cache was hit"
+    value: ${{ steps.setup-node.outputs.cache-hit }}
+
+# -----------------------------------------------------------------------------
+# Runs: The actual steps this composite action executes
+# Every step MUST have `shell:` specified (composite actions don't inherit shell)
+# -----------------------------------------------------------------------------
+runs:
+  using: "composite"
+  steps:
+    # Install pnpm if that's the chosen package manager.
+    # Conditional logic uses `if:` just like regular workflow steps.
+    - name: Install pnpm
+      if: inputs.package-manager == 'pnpm'
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
+    # Setup Node.js with caching for the chosen package manager
+    - name: Setup Node.js ${{ inputs.node-version }}
+      id: setup-node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.package-manager }}
+
+    # Install dependencies using the appropriate package manager.
+    # The shell field is REQUIRED in composite actions - without it, the
+    # step will fail with "Required property is missing: shell"
+    - name: Install dependencies (pnpm)
+      if: inputs.package-manager == 'pnpm'
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Install dependencies (npm)
+      if: inputs.package-manager == 'npm'
+      shell: bash
+      run: npm ci
+
+    # Run linting and capture the result.
+    # We use `|| true` to prevent the step from failing the entire action,
+    # then capture the actual exit code for the output.
+    - name: Run linter
+      id: lint
+      shell: bash
+      run: |
+        if pnpm lint 2>&1; then
+          echo "result=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=failure" >> "$GITHUB_OUTPUT"
+          echo "::error::Linting failed. Run 'pnpm lint' locally to see details."
+          exit 1
+        fi

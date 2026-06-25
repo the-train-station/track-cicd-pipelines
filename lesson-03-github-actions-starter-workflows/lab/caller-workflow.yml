@@ -1,0 +1,82 @@
+# =============================================================================
+# Caller Workflow: Matrix Build using Reusable Workflow
+# =============================================================================
+# This workflow demonstrates how to CALL a reusable workflow.
+# It uses a matrix strategy to test across multiple Node.js versions,
+# delegating the actual build+test logic to the reusable workflow.
+#
+# Key concepts demonstrated:
+# - workflow_call invocation with `uses:`
+# - Matrix strategy with reusable workflows
+# - Accessing outputs from reusable workflows
+# - Combining matrix + reusable for DRY CI pipelines
+# =============================================================================
+
+name: CI - Multi-Version Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job: Build and test across Node.js versions
+  # Uses matrix strategy to call the reusable workflow multiple times.
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    name: Node ${{ matrix.node-version }}
+    # `uses:` references the reusable workflow file.
+    # For same-repo workflows, use a relative path.
+    # For cross-repo: uses: org/repo/.github/workflows/file.yml@main
+    uses: ./.github/workflows/reusable-workflow.yml
+    # The matrix strategy creates parallel job runs
+    strategy:
+      matrix:
+        node-version: ["18", "20", "22"]
+      # fail-fast: false means all matrix jobs run even if one fails.
+      # Useful for compatibility testing - you want to see ALL failures.
+      fail-fast: false
+    # Pass matrix values as inputs to the reusable workflow
+    with:
+      node-version: ${{ matrix.node-version }}
+      working-directory: "."
+
+  # ---------------------------------------------------------------------------
+  # Job: Report coverage from the primary Node version
+  # Demonstrates accessing outputs from a reusable workflow.
+  # ---------------------------------------------------------------------------
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    steps:
+      - name: Report coverage
+        run: |
+          echo "## Coverage Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build and test completed across all Node.js versions." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Check individual job artifacts for detailed coverage reports." >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Job: Final gate - ensures all required checks passed
+  # Useful as a branch protection required check (single status to watch).
+  # ---------------------------------------------------------------------------
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [build-and-test, coverage-report]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
+            echo "Build and test failed!"
+            exit 1
+          fi
+          echo "All checks passed."

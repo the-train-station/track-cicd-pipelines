@@ -1,0 +1,110 @@
+# =============================================================================
+# Reusable Workflow: Node.js Build & Test
+# =============================================================================
+# This is a "called" workflow - it cannot run on its own. Other workflows
+# invoke it using `uses: ./.github/workflows/reusable-workflow.yml`.
+#
+# Key concept: workflow_call makes this workflow act like a function.
+# It accepts inputs (parameters) and produces outputs (return values).
+#
+# Usage in a caller workflow:
+#   jobs:
+#     build-and-test:
+#       uses: ./.github/workflows/reusable-workflow.yml
+#       with:
+#         node-version: "20"
+#         working-directory: "./packages/api"
+# =============================================================================
+
+name: Reusable - Build and Test
+
+# -----------------------------------------------------------------------------
+# workflow_call: This is what makes the workflow reusable.
+# It defines the "interface" - what callers can pass in and get back.
+# -----------------------------------------------------------------------------
+on:
+  workflow_call:
+    # Inputs are parameters the caller provides
+    inputs:
+      node-version:
+        description: "Node.js version to use"
+        required: false
+        type: string
+        default: "20"
+      working-directory:
+        description: "Directory containing package.json"
+        required: false
+        type: string
+        default: "."
+
+    # Outputs are values this workflow passes back to the caller
+    outputs:
+      coverage-percent:
+        description: "Test coverage percentage from Jest"
+        value: ${{ jobs.build-and-test.outputs.coverage }}
+
+jobs:
+  build-and-test:
+    name: Build & Test (Node ${{ inputs.node-version }})
+    runs-on: ubuntu-latest
+
+    # Map job outputs to workflow outputs
+    outputs:
+      coverage: ${{ steps.coverage.outputs.percent }}
+
+    # Set the working directory for all run steps in this job
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "pnpm"
+          # cache-dependency-path is needed when working-directory is not root
+          cache-dependency-path: "${{ inputs.working-directory }}/pnpm-lock.yaml"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Run tests with coverage
+        run: pnpm test -- --ci --coverage --coverageReporters=text --coverageReporters=json-summary
+
+      # Extract coverage percentage from Jest's JSON summary output.
+      # This demonstrates how to set job outputs from step results.
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          # Jest outputs coverage summary to coverage/coverage-summary.json
+          if [ -f coverage/coverage-summary.json ]; then
+            PERCENT=$(jq '.total.statements.pct' coverage/coverage-summary.json)
+            echo "percent=${PERCENT}" >> "$GITHUB_OUTPUT"
+            echo "Coverage: ${PERCENT}%"
+          else
+            echo "percent=0" >> "$GITHUB_OUTPUT"
+            echo "Warning: No coverage summary found"
+          fi
+
+      - name: Build
+        run: pnpm build
+
+      # Upload coverage as an artifact for the caller to use
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node-${{ inputs.node-version }}
+          path: ${{ inputs.working-directory }}/coverage/
+          retention-days: 7

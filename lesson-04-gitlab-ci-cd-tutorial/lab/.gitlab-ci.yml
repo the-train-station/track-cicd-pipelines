@@ -1,0 +1,197 @@
+# =============================================================================
+# GitLab CI/CD Pipeline - Node.js Application
+# =============================================================================
+# A production-ready GitLab CI pipeline demonstrating:
+# - Multi-stage pipeline with DAG optimization (needs:)
+# - Merge request pipelines vs branch pipelines
+# - Caching for fast dependency installation
+# - Artifacts for passing data between jobs
+# - Environment-based deployments with manual approval
+# - Auto-deploy to staging, manual gate for production
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stages: Define the order of execution.
+# Jobs in the same stage run in parallel by default.
+# Using `needs:` overrides this to create a DAG (Directed Acyclic Graph).
+# -----------------------------------------------------------------------------
+stages:
+  - lint
+  - build
+  - test
+  - deploy
+
+# -----------------------------------------------------------------------------
+# Global variables: Available to all jobs.
+# Use variables to avoid repetition and make pipelines configurable.
+# -----------------------------------------------------------------------------
+variables:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+  # Tells pnpm to store packages in a local dir (cacheable by GitLab)
+  PNPM_STORE_DIR: ".pnpm-store"
+
+# -----------------------------------------------------------------------------
+# Default settings: Applied to all jobs unless overridden.
+# -----------------------------------------------------------------------------
+default:
+  image: node:${NODE_VERSION}-alpine
+  # before_script runs before the main `script` in every job.
+  # Use it for common setup steps.
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm install --frozen-lockfile
+
+# -----------------------------------------------------------------------------
+# Cache: Persist dependencies between pipeline runs.
+# The key is based on the lockfile hash - cache invalidates when deps change.
+# -----------------------------------------------------------------------------
+cache:
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - ${PNPM_STORE_DIR}
+    - node_modules/
+  policy: pull-push
+
+# =============================================================================
+# STAGE: Lint
+# =============================================================================
+
+lint:
+  stage: lint
+  script:
+    - pnpm lint
+  # Rules control WHEN this job runs.
+  # This runs on MR pipelines and branch pushes to main.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# =============================================================================
+# STAGE: Build
+# =============================================================================
+
+build:
+  stage: build
+  # `needs:` creates a DAG dependency. This job starts as soon as `lint`
+  # passes, without waiting for the entire `lint` stage to complete.
+  # This is faster than stage-based ordering when you have many jobs.
+  needs: [lint]
+  script:
+    - pnpm build
+  # Artifacts: Files produced by this job that other jobs can use.
+  # Unlike cache (optimization), artifacts are guaranteed to be available.
+  artifacts:
+    paths:
+      - dist/
+    # How long to keep the artifacts. Balance storage cost vs utility.
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# =============================================================================
+# STAGE: Test
+# =============================================================================
+
+test:unit:
+  stage: test
+  # This job only needs lint to pass, not build.
+  # DAG allows test and build to run in parallel after lint.
+  needs: [lint]
+  script:
+    - pnpm test -- --ci --coverage
+  # Coverage regex: GitLab parses job logs for this pattern to extract
+  # coverage percentage and display it in MR widgets.
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 1 week
+    # `reports` is special: GitLab parses these for MR widgets.
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+      junit: coverage/junit.xml
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+test:e2e:
+  stage: test
+  needs: [build]
+  image: mcr.microsoft.com/playwright:v1.40.0-jammy
+  # Override the default before_script for this specialized job
+  before_script:
+    - corepack enable
+    - corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm install --frozen-lockfile
+    - npx playwright install --with-deps chromium
+  script:
+    - pnpm test:e2e
+  artifacts:
+    paths:
+      - playwright-report/
+    expire_in: 3 days
+    # Only upload artifacts when the job fails (saves storage on success)
+    when: on_failure
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# =============================================================================
+# STAGE: Deploy
+# =============================================================================
+
+# Staging: Auto-deploys when main branch pipeline passes all tests.
+deploy:staging:
+  stage: deploy
+  needs: [build, test:unit, test:e2e]
+  # `environment` links this job to a GitLab Environment.
+  # Environments provide deploy history, rollback buttons, and monitoring links.
+  environment:
+    name: staging
+    url: https://staging.example.com
+  # Minimal image for deployment (no need for full Node.js)
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Deploying build artifacts to staging..."
+    # In a real pipeline, this would be a deployment command, e.g.:
+    # - aws s3 sync dist/ s3://staging-bucket/ --delete
+    # - kubectl apply -f k8s/staging/
+    # - curl -X POST "$DEPLOY_WEBHOOK_URL" -d '{"env":"staging","ref":"$CI_COMMIT_SHA"}'
+    - echo "Deployed commit $CI_COMMIT_SHORT_SHA to staging"
+  # Only deploy to staging from the default branch (main)
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Production: Manual deployment with environment protection.
+deploy:production:
+  stage: deploy
+  needs: [deploy:staging]
+  environment:
+    name: production
+    url: https://www.example.com
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Deploying build artifacts to production..."
+    # Real deployment commands would go here
+    - echo "Deployed commit $CI_COMMIT_SHORT_SHA to production"
+  rules:
+    # `when: manual` creates a play button in the GitLab UI.
+    # The pipeline pauses here until someone clicks "Play".
+    # Combined with environment protection rules (configured in GitLab UI),
+    # this creates a proper approval gate.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  # `allow_failure: false` means the pipeline shows as "blocked" (not failed)
+  # while waiting for manual approval.
+  allow_failure: false
