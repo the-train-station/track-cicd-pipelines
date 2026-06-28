@@ -97,6 +97,31 @@ Before moving on, write a short checklist you would require before approving any
 
 This habit makes the lesson operationally useful instead of academically interesting.
 
+## Deliverable
+
+Create a portfolio-ready **deployment strategy packet** for one real or imagined application. Include:
+
+- A completed [comparison matrix](lab/comparison-matrix.md) for blue/green, canary, rolling, and recreate deployments
+- A completed [decision exercise](lab/decision-exercise.md) with one strategy recommendation and one rejected alternative per scenario
+- A one-page rollout checklist that names the release owner, rollout window, health metrics, rollback trigger, and communication channel
+
+Reusable artifact: keep the rollout checklist as a template you can attach to future Train Station projects or interview portfolio notes.
+
+## Validation
+
+Check the packet before marking the lesson complete:
+
+```bash
+grep -n "Rollback" lab/comparison-matrix.md
+grep -n "Scenario 1" lab/decision-exercise.md
+```
+
+Expected result: the first command finds the rollback-speed column, and the second command confirms the scenario exercise is present. Your completed packet should also name at least one rollback trigger and one promotion metric.
+
+## Self-Assessment
+
+Scenario question for Train Station app integration: if this lesson were displayed in the app as a portfolio checkpoint, which single artifact would prove you can choose a deployment strategy instead of only defining one? Write a 3-5 sentence answer that links your chosen strategy to user risk, rollback speed, and operational cost.
+
 ## Practice Notes
 
 - Use timestamps as bookmarks. Pause after each major concept, write the claim in your own words, then add a small experiment or diagram that proves you understood it.
