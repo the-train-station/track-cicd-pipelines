@@ -9,9 +9,3 @@ lessons:
   - { order: 2, dir: lesson-02-github-actions-ci-cd-workshop, tier: free }
   - { order: 3, dir: lesson-03-github-actions-starter-workflows, tier: free }
   - { order: 4, dir: lesson-04-gitlab-ci-cd-tutorial, tier: free }
-  - { order: 5, dir: lesson-05-argocd-gitops-kubernetes, tier: premium }
-  - { order: 6, dir: lesson-06-aws-codepipeline-codebuild, tier: premium }
-  - { order: 7, dir: lesson-07-pipeline-security-supply-chain, tier: premium }
-  - { order: 8, dir: lesson-08-jenkins-pipeline-as-code, tier: premium }
-  - { order: 9, dir: lesson-09-tekton-pipelines-kubernetes, tier: premium }
-  - { order: 10, dir: lesson-10-advanced-pipeline-patterns, tier: premium }

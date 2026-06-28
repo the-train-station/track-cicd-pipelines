@@ -52,6 +52,33 @@ Track: CI/CD Pipelines • Type: repo • Difficulty: beginner • Platform: Git
 9. Extract shared logic. If multiple repos will share the pattern, publish a reusable workflow in this repo or in a central `.github` repository and call it with `workflow_call`. Keep deploy logic separate from build/test to control blast radius.
 10. Operationalize. Turn on required status checks, branch protection, and environment rules so merges and releases rely on the pipeline consistently.
 
+## Deliverable
+
+Create a **starter workflow adoption note** for one repository:
+
+- A copied or adapted starter workflow
+- A completed [starter workflow comparison exercise](lab/starter-workflow-comparison.md)
+- A review of [lab/reusable-workflow.yml](lab/reusable-workflow.yml) and [lab/caller-workflow.yml](lab/caller-workflow.yml) showing when reusable workflows are worth the added structure
+- A short "production changes needed" list covering action pinning, token permissions, cache keys, environment gates, and branch protection
+
+Reusable artifact: keep the comparison exercise as a rubric for choosing between a starter workflow, a custom workflow, and a reusable organization workflow.
+
+## Validation
+
+Use these checks after adding a starter to a repository:
+
+```bash
+git diff -- .github/workflows
+gh workflow list
+gh run list --workflow "<workflow-name>" --limit 3
+```
+
+Expected result: the diff shows only intentional workflow changes, the workflow is enabled, and at least one run exists for the branch or pull request you used to validate it.
+
+## Self-Assessment
+
+Scenario question for Train Station app integration: the app asks learners to upload one artifact from this lesson. Would you upload the raw starter workflow, the hardened version, or the comparison rubric? Explain which artifact better demonstrates judgment and why.
+
 ## Practice Notes
 
 - Treat the repository as source material to inspect, not just clone. Review the README, release history, examples, issues, license, and maintenance signals before deciding whether to reuse it.

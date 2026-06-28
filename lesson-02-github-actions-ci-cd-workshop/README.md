@@ -64,6 +64,33 @@ When you finish the course, copy the working workflow file(s) into an active pro
 
 Add caching if builds are slow, split jobs for parallelism, and upload artifacts you need for debugging. Document what the pipeline does, how to run it locally if needed, and how to recover from common failures.
 
+## Deliverable
+
+Create a **GitHub Actions CI portfolio bundle** for a sandbox repository:
+
+- A working workflow based on [lab/ci.yml](lab/ci.yml)
+- A short pipeline run note with the run URL, trigger event, jobs that passed, and artifacts uploaded
+- A completed [workflow hardening checklist](lab/workflow-hardening-checklist.md)
+- A brief rollback note explaining how you would disable a bad deployment workflow or revert a broken workflow change
+
+Reusable artifact: the hardening checklist can be reused before copying any GitHub Actions workflow into a production repository.
+
+## Validation
+
+Run these checks in the repository where you install the workflow:
+
+```bash
+gh workflow list
+gh run list --limit 5
+gh run view --log-failed
+```
+
+Expected result: the workflow appears in the list, the latest run reaches `completed` with `success` for the required CI jobs, and `gh run view --log-failed` prints no failed job logs for a passing run.
+
+## Self-Assessment
+
+Scenario question for Train Station app integration: if an app reviewer only saw your workflow file and one run URL, what evidence would convince them the workflow is safe enough to require on pull requests? Mention permissions, required checks, artifact handling, and failure recovery.
+
 ## Practice Notes
 
 - Run hands-on work in a sandbox and keep a short lab log with commands, screenshots or outputs, resources created, cleanup steps, and the one pattern you would reuse in production.

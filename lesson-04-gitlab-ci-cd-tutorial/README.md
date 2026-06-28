@@ -76,6 +76,7 @@ deploy:
 ```
 
 Notes:
+
 - Replace `alpine:latest` with a language image (for example, `node:20`, `python:3.12`, or your own registry image) and swap the `echo` commands for your real build/test steps.
 - If your organization requires runner tags, add `tags: ["your-tag"]` to each job to target eligible runners.
 
@@ -84,6 +85,7 @@ Notes:
 Commit the new file on a branch and push. Open CI/CD → Pipelines. You should see a pipeline created automatically for your commit. Click into the pipeline to view the stage graph, then open each job to read its log output.
 
 Early troubleshooting checklist:
+
 - If the pipeline does not appear, confirm the file is named exactly `.gitlab-ci.yml` at the repo root and that your branch is not excluded by `rules`.
 - If jobs are pending for a long time, verify runner availability and tags.
 - If a job fails immediately, open the job log — most YAML and shell errors are obvious from the first 10–20 lines.
@@ -118,10 +120,39 @@ Artifacts let you inspect reports (for example, JUnit or coverage) even when a j
 ### Step 5: Evolve Stages and Rules As You Grow
 
 As the pipeline matures:
+
 - Split long jobs and keep early stages (<5 minutes) focused on fast checks.
 - Use `rules:` to scope when jobs run (for example, only on merge requests or only on `main`).
 - Add environments for deployments to track history and review apps. Start with `when: manual` until you establish guardrails.
 - Protect branches and require passing pipelines before merge to keep your default branch green.
+
+## Deliverable
+
+Create a **GitLab CI/CD portfolio artifact** for a project:
+
+- A working `.gitlab-ci.yml` based on [lab/.gitlab-ci.yml](lab/.gitlab-ci.yml)
+- A completed [artifact and cache exercise](lab/artifact-cache-exercise.md)
+- A pipeline evidence note with the pipeline URL, runner type, stage graph, cache hit or miss observation, and artifact download path
+- A short rollback note describing how you would stop an unsafe production deploy and restore the last known-good artifact
+
+Reusable artifact: the artifact/cache exercise becomes a review aid for future GitLab pipeline changes.
+
+## Validation
+
+Run these checks from a clone of the GitLab project after the pipeline runs:
+
+```bash
+gitlab-runner exec shell lint
+gitlab-runner exec shell build
+```
+
+If you do not have a local runner, validate in GitLab UI instead: confirm the pipeline status is `passed`, the test job publishes reports, and the build job exposes the expected `dist/` artifact.
+
+Expected result: lint and build jobs complete successfully, cache paths are populated on the second run, and artifacts are downloadable from the job page.
+
+## Self-Assessment
+
+Scenario question for Train Station app integration: if your GitLab lesson card showed a "validated artifact" badge, what exact evidence should the app collect: pipeline status, job log snippet, artifact path, cache key, or all of them? Defend your answer in one paragraph.
 
 ## Practice Notes
 
